@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Financeiro Empresa</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --card2: #222533;
+    --border: #2e3347;
+    --accent: #4f8ef7;
+    --accent2: #7c5cbf;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+
+  /* LOGIN */
+  #loginScreen { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  .login-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:40px; width:360px; text-align:center; }
+  .login-box h2 { margin-bottom:8px; font-size:22px; }
+  .login-box p { color:var(--muted); margin-bottom:28px; font-size:13px; }
+  .login-box input { width:100%; padding:12px; background:var(--card2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:14px; margin-bottom:12px; outline:none; }
+  .login-box input:focus { border-color:var(--accent); }
+  .login-box button { width:100%; padding:12px; background:var(--accent); border:none; border-radius:8px; color:#fff; font-size:15px; font-weight:600; cursor:pointer; }
+  .login-box button:hover { opacity:.9; }
+  #loginError { color:var(--red); font-size:13px; margin-top:10px; display:none; }
+
+  /* APP */
+  #app { display:none; flex-direction:column; min-height:100vh; }
+
+  /* HEADER */
+  header { background:var(--card); border-bottom:1px solid var(--border); padding:12px 24px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+  .logo { font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px; }
+  .logo span { color:var(--accent); }
+  .header-actions { display:flex; gap:10px; align-items:center; }
+  .btn-sm { padding:6px 14px; border-radius:7px; border:1px solid var(--border); background:var(--card2); color:var(--text); cursor:pointer; font-size:13px; transition:.2s; }
+  .btn-sm:hover { background:var(--border); }
+  .btn-accent { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn-accent:hover { opacity:.85; }
+  .btn-green { background:var(--green); border-color:var(--green); color:#fff; }
+  .btn-green:hover { opacity:.85; }
+
+  /* TABS */
+  .tabs { display:flex; gap:4px; background:var(--card); border-bottom:1px solid var(--border); padding:0 24px; }
+  .tab { padding:12px 18px; cursor:pointer; color:var(--muted); border-bottom:2px solid transparent; font-size:13px; font-weight:500; transition:.2s; white-space:nowrap; }
+  .tab:hover { color:var(--text); }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+  /* MAIN */
+  main { flex:1; padding:24px; max-width:1400px; width:100%; margin:0 auto; }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+
+  /* CARDS */
+  .kpi-row { display:grid; gap:14px; margin-bottom:20px; }
+  .kpi-4 { grid-template-columns: repeat(4,1fr); }
+  .kpi-3 { grid-template-columns: repeat(3,1fr); }
+  .kpi-2 { grid-template-columns: repeat(2,1fr); }
+  .kpi-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; }
+  .kpi-label { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+  .kpi-value { font-size:22px; font-weight:700; }
+  .kpi-sub { font-size:12px; color:var(--muted); margin-top:4px; }
+  .kpi-up { color:var(--green); }
+  .kpi-down { color:var(--red); }
+
+  /* PROGRESS BAR */
+  .progress-bar { height:6px; background:var(--border); border-radius:3px; margin-top:8px; overflow:hidden; }
+  .progress-fill { height:100%; border-radius:3px; background:var(--accent); transition:.4s; }
+
+  /* GRID */
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+  .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:20px; }
+
+  /* SECTION CARD */
+  .section-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); }
+  .section-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .section-title { font-size:13px; font-weight:600; }
+  .section-body { padding:16px 18px; }
+
+  /* TABLE */
+  .table-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { padding:10px 12px; text-align:left; color:var(--muted); font-weight:500; font-size:12px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  td { padding:10px 12px; border-bottom:1px solid var(--border); }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:var(--card2); }
+  .empty-row td { text-align:center; color:var(--muted); padding:24px; }
+
+  /* BADGES */
+  .badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:600; }
+  .badge-green { background:#22c55e22; color:#22c55e; }
+  .badge-red { background:#ef444422; color:#ef4444; }
+  .badge-yellow { background:#f59e0b22; color:#f59e0b; }
+  .badge-blue { background:#4f8ef722; color:#4f8ef7; }
+  .badge-gray { background:#8892a422; color:#8892a4; }
+
+  /* AMOUNT COLORS */
+  .pos { color:var(--green); }
+  .neg { color:var(--red); }
+  .neu { color:var(--muted); }
+
+  /* CHARTS */
+  .chart-wrap { position:relative; height:220px; }
+  .chart-wrap-lg { position:relative; height:280px; }
+
+  /* TERMINAL */
+  #terminalBar { position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--border); padding:10px 24px; display:flex; align-items:center; gap:12px; z-index:200; }
+  #terminalBar .prompt { color:var(--accent); font-family:monospace; font-size:14px; white-space:nowrap; }
+  #terminalInput { flex:1; background:transparent; border:none; outline:none; color:var(--text); font-family:monospace; font-size:14px; }
+  #terminalMsg { font-size:12px; color:var(--muted); min-width:200px; }
+  #terminalMsg.ok { color:var(--green); }
+  #terminalMsg.err { color:var(--red); }
+
+  /* MODAL */
+  .modal-overlay { position:fixed; inset:0; background:#0008; z-index:300; display:flex; align-items:center; justify-content:center; }
+  .modal { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:28px; width:460px; max-width:95vw; }
+  .modal h3 { font-size:16px; margin-bottom:20px; }
+  .form-group { margin-bottom:14px; }
+  .form-group label { display:block; font-size:12px; color:var(--muted); margin-bottom:5px; }
+  .form-group input, .form-group select, .form-group textarea { width:100%; padding:10px 12px; background:var(--card2); border:1px solid var(--border); border-radius:7px; color:var(--text); font-size:13px; outline:none; }
+  .form-group input:focus, .form-group select:focus { border-color:var(--accent); }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+  .btn-cancel { padding:9px 20px; border-radius:7px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-size:13px; }
+  .btn-save { padding:9px 20px; border-radius:7px; border:none; background:var(--accent); color:#fff; cursor:pointer; font-size:13px; font-weight:600; }
+  .btn-save:hover { opacity:.9; }
+
+  /* CONFIRM */
+  .confirm-btn { padding:4px 10px; border-radius:5px; border:none; cursor:pointer; font-size:12px; }
+  .confirm-btn.pay { background:var(--green); color:#fff; }
+  .confirm-btn.receive { background:var(--accent); color:#fff; }
+  .del-btn { padding:4px 10px; border-radius:5px; border:none; cursor:pointer; font-size:12px; background:var(--red); color:#fff; }
+
+  /* FILTER BAR */
+  .filter-bar { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  .filter-bar input, .filter-bar select { padding:8px 12px; background:var(--card2); border:1px solid var(--border); border-radius:7px; color:var(--text); font-size:13px; outline:none; }
+  .filter-bar input:focus, .filter-bar select:focus { border-color:var(--accent); }
+  .filter-bar input { flex:1; min-width:180px; }
+
+  /* DRE TABLE */
+  .dre-table th { background:var(--card2); }
+  .dre-table .total-row td { font-weight:700; background:var(--card2); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  /* RESPONSIVE */
+  @media(max-width:900px) {
+    .kpi-4 { grid-template-columns:1fr 1fr; }
+    .grid-2, .grid-3 { grid-template-columns:1fr; }
+    .kpi-3 { grid-template-columns:1fr 1fr; }
+  }
+  @media(max-width:540px) {
+    .kpi-4, .kpi-3, .kpi-2 { grid-template-columns:1fr 1fr; }
+    main { padding:12px; }
+    header { padding:10px 14px; }
+    .tabs { padding:0 10px; }
+    .tab { padding:10px 12px; font-size:12px; }
+  }
+  .pb-term { padding-bottom:60px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div style="font-size:36px;margin-bottom:12px;">🏢</div>
+    <h2>Financeiro Empresa</h2>
+    <p>Acesso restrito aos sócios</p>
+    <input type="password" id="loginPwd" placeholder="Senha" onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">Entrar</button>
+    <div id="loginError">Senha incorreta</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="logo">🏢 <span>Financeiro</span> Empresa</div>
+    <div class="header-actions">
+      <button class="btn-sm" onclick="exportExcel()">⬇ Excel</button>
+      <button class="btn-sm btn-green" onclick="openModal('transacao')">+ Lançamento</button>
+      <button class="btn-sm btn-accent" onclick="openModal('pagar')">+ A Pagar</button>
+      <button class="btn-sm" style="background:var(--accent2);border-color:var(--accent2);color:#fff" onclick="openModal('receber')">+ A Receber</button>
+      <button class="btn-sm" onclick="doLogout()">Sair</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('geral')">📊 Visão Geral</div>
+    <div class="tab" onclick="switchTab('dre')">📈 DRE Anual</div>
+    <div class="tab" onclick="switchTab('pagar')">📤 A Pagar</div>
+    <div class="tab" onclick="switchTab('receber')">📥 A Receber</div>
+    <div class="tab" onclick="switchTab('lancamentos')">📋 Lançamentos</div>
+  </div>
+
+  <main class="pb-term">
+
+    <!-- TAB GERAL -->
+    <div id="tabGeral" class="tab-content active">
+      <div class="kpi-row kpi-4" id="kpiGeralRow1"></div>
+      <div class="kpi-row kpi-4" id="kpiGeralRow2"></div>
+      <div class="grid-2">
+        <div class="section-card">
+          <div class="section-header"><span class="section-title">📤 Próximos a Pagar</span><span id="totalAPagar" style="font-size:12px;color:var(--muted)"></span></div>
+          <div class="section-body"><div id="listAPagar"></div></div>
+        </div>
+        <div class="section-card">
+          <div class="section-header"><span class="section-title">📥 Próximos a Receber</span><span id="totalAReceber" style="font-size:12px;color:var(--muted)"></span></div>
+          <div class="section-body"><div id="listAReceber"></div></div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="section-card">
+          <div class="section-header"><span class="section-title">💸 Últimas Transações</span></div>
+          <div class="section-body"><div id="listTransacoes"></div></div>
+        </div>
+        <div class="section-card">
+          <div class="section-header"><span class="section-title">🔒 Custos Fixos</span><span id="totalFixos" style="font-size:12px;color:var(--muted)"></span></div>
+          <div class="section-body"><div id="listFixos"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB DRE -->
+    <div id="tabDre" class="tab-content">
+      <div class="kpi-row kpi-4" id="kpiDreRow"></div>
+      <div class="grid-2">
+        <div class="section-card">
+          <div class="section-header"><span class="section-title">📊 Fluxo Mensal <span id="dreAnoLabel"></span></span></div>
+          <div class="section-body"><div class="chart-wrap-lg"><canvas id="chartFluxo"></canvas></div></div>
+        </div>
+        <div class="section-card">
+          <div class="section-header"><span class="section-title">🍩 Despesas por Categoria</span></div>
+          <div class="section-body"><div class="chart-wrap-lg"><canvas id="chartCategoria"></canvas></div></div>
+        </div>
+      </div>
+      <div class="section-card" style="margin-bottom:20px">
+        <div class="section-header"><span class="section-title">📋 DRE — Resumo Mensal</span></div>
+        <div class="section-body">
+          <div class="table-wrap"><table class="dre-table" id="tableDre"></table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB A PAGAR -->
+    <div id="tabPagar" class="tab-content">
+      <div class="filter-bar">
+        <input type="text" id="filterPagarBusca" placeholder="Buscar fornecedor ou descrição..." oninput="renderPagar()">
+        <select id="filterPagarStatus" onchange="renderPagar()">
+          <option value="">Todos os status</option>
+          <option value="pendente">Pendente</option>
+          <option value="pago">Pago</option>
+          <option value="vencido">Vencido</option>
+        </select>
+        <select id="filterPagarMes" onchange="renderPagar()">
+          <option value="">Todos os meses</option>
+        </select>
+      </div>
+      <div class="section-card">
+        <div class="section-header">
+          <span class="section-title">📤 Contas a Pagar</span>
+          <span id="resumoPagar" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+        <div class="section-body">
+          <div class="table-wrap"><table id="tablePagar">
+            <thead><tr><th>Fornecedor</th><th>Descrição</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody id="bodyPagar"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB A RECEBER -->
+    <div id="tabReceber" class="tab-content">
+      <div class="filter-bar">
+        <input type="text" id="filterReceberBusca" placeholder="Buscar cliente ou descrição..." oninput="renderReceber()">
+        <select id="filterReceberStatus" onchange="renderReceber()">
+          <option value="">Todos os status</option>
+          <option value="pendente">Pendente</option>
+          <option value="recebido">Recebido</option>
+          <option value="vencido">Vencido</option>
+        </select>
+        <select id="filterReceberMes" onchange="renderReceber()">
+          <option value="">Todos os meses</option>
+        </select>
+      </div>
+      <div class="section-card">
+        <div class="section-header">
+          <span class="section-title">📥 Contas a Receber</span>
+          <span id="resumoReceber" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+        <div class="section-body">
+          <div class="table-wrap"><table id="tableReceber">
+            <thead><tr><th>Cliente</th><th>Descrição</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody id="bodyReceber"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB LANÇAMENTOS -->
+    <div id="tabLancamentos" class="tab-content">
+      <div class="filter-bar">
+        <input type="text" id="filterLancBusca" placeholder="Buscar descrição..." oninput="renderLancamentos()">
+        <select id="filterLancTipo" onchange="renderLancamentos()">
+          <option value="">Todos os tipos</option>
+          <option value="receita">Receita</option>
+          <option value="despesa">Despesa</option>
+        </select>
+        <select id="filterLancMes" onchange="renderLancamentos()">
+          <option value="">Todos os meses</option>
+        </select>
+      </div>
+      <div class="section-card">
+        <div class="section-header">
+          <span class="section-title">📋 Todos os Lançamentos</span>
+          <span id="resumoLanc" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+        <div class="section-body">
+          <div class="table-wrap"><table id="tableLanc">
+            <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Conta</th><th>Tipo</th><th>Valor</th><th></th></tr></thead>
+            <tbody id="bodyLanc"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- TERMINAL -->
+  <div id="terminalBar">
+    <span class="prompt">$&gt;</span>
+    <input id="terminalInput" type="text" placeholder="receita 25/04 5000 nubank Venda produto  |  despesa 25/04 800 bradesco Fornecedor  |  ajuda" autocomplete="off" onkeydown="if(event.key==='Enter')handleTerminal()">
+    <span id="terminalMsg"></span>
+  </div>
+</div>
+
+<!-- MODAIS -->
+<!-- Modal Transação -->
+<div id="modalTransacao" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h3>💸 Novo Lançamento</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Tipo</label>
+        <select id="mTipoTrans">
+          <option value="receita">Receita</option>
+          <option value="despesa">Despesa</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Data</label>
+        <input type="date" id="mDataTrans">
+      </div>
+    </div>
+    <div class="form-group"><label>Descrição</label><input type="text" id="mDescTrans" placeholder="Ex: Venda produto X"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Valor (R$)</label><input type="number" id="mValorTrans" placeholder="0,00" step="0.01"></div>
+      <div class="form-group">
+        <label>Conta</label>
+        <select id="mContaTrans"></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Categoria</label>
+      <select id="mCategTrans"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('transacao')">Cancelar</button>
+      <button class="btn-save" onclick="saveTransacao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal A Pagar -->
+<div id="modalPagar" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h3>📤 Nova Conta a Pagar</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Fornecedor</label><input type="text" id="mFornecedor" placeholder="Nome do fornecedor"></div>
+      <div class="form-group"><label>Vencimento</label><input type="date" id="mVencPagar"></div>
+    </div>
+    <div class="form-group"><label>Descrição</label><input type="text" id="mDescPagar" placeholder="Descrição da conta"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Valor (R$)</label><input type="number" id="mValorPagar" placeholder="0,00" step="0.01"></div>
+      <div class="form-group"><label>Categoria</label><select id="mCategPagar"></select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('pagar')">Cancelar</button>
+      <button class="btn-save" onclick="savePagar()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal A Receber -->
+<div id="modalReceber" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h3>📥 Nova Conta a Receber</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Cliente</label><input type="text" id="mCliente" placeholder="Nome do cliente"></div>
+      <div class="form-group"><label>Vencimento</label><input type="date" id="mVencReceber"></div>
+    </div>
+    <div class="form-group"><label>Descrição</label><input type="text" id="mDescReceber" placeholder="Descrição"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Valor (R$)</label><input type="number" id="mValorReceber" placeholder="0,00" step="0.01"></div>
+      <div class="form-group"><label>Categoria</label><select id="mCategReceber"></select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('receber')">Cancelar</button>
+      <button class="btn-save" onclick="saveReceber()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Confirmar Pagamento -->
+<div id="modalConfirmarPagar" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h3>✅ Confirmar Pagamento</h3>
+    <p id="mConfPagarDesc" style="color:var(--muted);font-size:13px;margin-bottom:16px"></p>
+    <div class="form-row">
+      <div class="form-group"><label>Data do Pagamento</label><input type="date" id="mConfPagarData"></div>
+      <div class="form-group"><label>Conta Debitada</label><select id="mConfPagarConta"></select></div>
+    </div>
+    <div class="form-group"><label>Valor Pago (R$)</label><input type="number" id="mConfPagarValor" step="0.01"></div>
+    <div id="mConfPagarId" style="display:none"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('confirmarPagar')">Cancelar</button>
+      <button class="btn-save" onclick="confirmarPagamento()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Confirmar Recebimento -->
+<div id="modalConfirmarReceber" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h3>✅ Confirmar Recebimento</h3>
+    <p id="mConfReceberDesc" style="color:var(--muted);font-size:13px;margin-bottom:16px"></p>
+    <div class="form-row">
+      <div class="form-group"><label>Data do Recebimento</label><input type="date" id="mConfReceberData"></div>
+      <div class="form-group"><label>Conta Creditada</label><select id="mConfReceberConta"></select></div>
+    </div>
+    <div class="form-group"><label>Valor Recebido (R$)</label><input type="number" id="mConfReceberValor" step="0.01"></div>
+    <div id="mConfReceberId" style="display:none"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('confirmarReceber')">Cancelar</button>
+      <button class="btn-save" onclick="confirmarRecebimento()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ─────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://kzusibfzntpdjcfmqbon.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6dXNpYmZ6bnRwZGpjZm1xYm9uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NjU2MDYsImV4cCI6MjA5MjQ0MTYwNn0.PMPcZjiPu_z0sydPwGtMll6JxfQHJ-MISjoIwBw_DA4';
+// Senha padrão: empresa@2026  (altere o hash abaixo se quiser mudar)
+const PWD_HASH = 'e4c8a08dfd3bddeee38f3cd54bcd507e95f119be479de178f5371d17b1cf4c14';
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let state = {
+  transactions: [], payables: [], receivables: [],
+  fixedCosts: [], accounts: [], categories: [], settings: {}
+};
+let chartFluxo = null, chartCategoria = null;
+const ANO = new Date().getFullYear();
+
+// ─── AUTH ────────────────────────────────────────────────────────────────────
+async function sha256(msg) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+async function doLogin() {
+  const pwd = document.getElementById('loginPwd').value;
+  const hash = await sha256(pwd);
+  if (hash === PWD_HASH) {
+    localStorage.setItem('empresa_auth','1');
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    await loadAll();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+function doLogout() {
+  localStorage.removeItem('empresa_auth');
+  location.reload();
+}
+if (localStorage.getItem('empresa_auth') === '1') {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  loadAll();
+}
+
+// ─── SUPABASE API ─────────────────────────────────────────────────────────────
+const H = { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+async function sb(path, opts={}) {
+  const r = await fetch(SUPABASE_URL + path, { headers: H, ...opts });
+  if (!r.ok) { const e = await r.text(); console.error(e); throw new Error(e); }
+  if (r.status === 204) return null;
+  return r.json();
+}
+const get   = (t, qs='') => sb(`/rest/v1/${t}?${qs}`, { headers: {...H, 'Prefer':'return=representation'} });
+const post  = (t, body)  => sb(`/rest/v1/${t}`, { method:'POST', body: JSON.stringify(body), headers: {...H, 'Prefer':'return=representation'} });
+const patch = (t, id, body) => sb(`/rest/v1/${t}?id=eq.${id}`, { method:'PATCH', body: JSON.stringify(body), headers: {...H, 'Prefer':'return=representation'} });
+const del   = (t, id)    => sb(`/rest/v1/${t}?id=eq.${id}`, { method:'DELETE' });
+const rpc   = (fn, body={}) => sb(`/rest/v1/rpc/${fn}`, { method:'POST', body: JSON.stringify(body) });
+
+// ─── LOAD ─────────────────────────────────────────────────────────────────────
+async function loadAll() {
+  const [trans, pay, rec, fixed, accs, cats, setts] = await Promise.all([
+    get('transactions', 'order=date.desc&limit=200'),
+    get('payables', 'order=due_date.asc'),
+    get('receivables', 'order=due_date.asc'),
+    get('fixed_costs', 'active=eq.true&order=due_day.asc'),
+    get('accounts', 'order=name.asc'),
+    get('categories', 'order=type.asc,name.asc'),
+    get('settings', '')
+  ]);
+  state.transactions = trans || [];
+  state.payables = pay || [];
+  state.receivables = rec || [];
+  state.fixedCosts = fixed || [];
+  state.accounts = accs || [];
+  state.categories = cats || [];
+  state.settings = {};
+  (setts || []).forEach(s => state.settings[s.key] = s.value);
+  updateOverdueStatus();
+  renderAll();
+  populateFilters();
+  populateSelects();
+}
+
+function updateOverdueStatus() {
+  const today = new Date().toISOString().split('T')[0];
+  state.payables.forEach(p => {
+    if (p.status === 'pendente' && p.due_date < today) p.status = 'vencido';
+  });
+  state.receivables.forEach(r => {
+    if (r.status === 'pendente' && r.due_date < today) r.status = 'vencido';
+  });
+}
+
+// ─── RENDER ALL ───────────────────────────────────────────────────────────────
+function renderAll() {
+  renderGeral();
+  renderDRE();
+  renderPagar();
+  renderReceber();
+  renderLancamentos();
+}
+
+// ─── FORMATTERS ───────────────────────────────────────────────────────────────
+const R$ = (v) => 'R$ ' + Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtDate = (d) => d ? d.split('-').reverse().join('/') : '-';
+const fmtDateInput = (d) => d ? d.split('T')[0] : '';
+const today = () => new Date().toISOString().split('T')[0];
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+// ─── GERAL ────────────────────────────────────────────────────────────────────
+function renderGeral() {
+  const mes = new Date().toISOString().slice(0,7);
+  const transM = state.transactions.filter(t => t.date && t.date.startsWith(mes));
+  const receita = transM.filter(t => t.type === 'receita').reduce((a,t) => a + +t.amount, 0);
+  const despesa = transM.filter(t => t.type === 'despesa').reduce((a,t) => a + +t.amount, 0);
+  const lucro = receita - despesa;
+  const margem = receita > 0 ? (lucro / receita * 100) : 0;
+  const aPagar = state.payables.filter(p => p.status === 'pendente' && p.due_date && p.due_date.startsWith(mes)).reduce((a,p) => a + +p.amount, 0);
+  const aReceber = state.receivables.filter(r => r.status === 'pendente' && r.due_date && r.due_date.startsWith(mes)).reduce((a,r) => a + +r.amount, 0);
+  const saldoTotal = state.accounts.reduce((a,ac) => a + +ac.balance, 0);
+  const metaFat = +(state.settings.meta_faturamento_mensal || 0);
+  const metaLucro = +(state.settings.meta_lucro_mensal || 0);
+  const pctFat = metaFat > 0 ? Math.min(100, receita / metaFat * 100) : 0;
+
+  document.getElementById('kpiGeralRow1').innerHTML = `
+    ${kpiCard('Faturamento Mês', R$(receita), metaFat > 0 ? `Meta: ${R$(metaFat)}` : '', 'pos')}
+    ${kpiCard('Despesas Mês', R$(despesa), '', 'neg')}
+    ${kpiCard('Lucro Mês', R$(lucro), '', lucro >= 0 ? 'pos' : 'neg')}
+    ${kpiCard('Margem', margem.toFixed(1) + '%', 'Lucro / Faturamento', margem >= 20 ? 'pos' : margem > 0 ? 'neu' : 'neg')}
+  `;
+  document.getElementById('kpiGeralRow2').innerHTML = `
+    ${kpiCard('A Pagar (mês)', R$(aPagar), 'Pendente', 'neg')}
+    ${kpiCard('A Receber (mês)', R$(aReceber), 'Pendente', 'pos')}
+    ${kpiCard('Saldo em Contas', R$(saldoTotal), '', 'pos')}
+    ${kpiCardProgress('Meta Faturamento', R$(receita), metaFat > 0 ? R$(metaFat) : 'Sem meta', pctFat)}
+  `;
+
+  // A Pagar próximos 30 dias
+  const prox30 = new Date(); prox30.setDate(prox30.getDate() + 30);
+  const proxPagar = state.payables.filter(p => ['pendente','vencido'].includes(p.status)).slice(0,6);
+  document.getElementById('listAPagar').innerHTML = proxPagar.length
+    ? `<div class="table-wrap"><table><tbody>${proxPagar.map(p => `<tr>
+        <td>${fmtDate(p.due_date)}</td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.supplier}</td>
+        <td class="neg">${R$(p.amount)}</td>
+        <td>${badgeStatus(p.status)}</td>
+      </tr>`).join('')}</tbody></table></div>`
+    : '<p style="color:var(--muted);font-size:13px">Nenhuma conta pendente</p>';
+  document.getElementById('totalAPagar').textContent = R$(aPagar);
+
+  const proxReceber = state.receivables.filter(r => ['pendente','vencido'].includes(r.status)).slice(0,6);
+  document.getElementById('listAReceber').innerHTML = proxReceber.length
+    ? `<div class="table-wrap"><table><tbody>${proxReceber.map(r => `<tr>
+        <td>${fmtDate(r.due_date)}</td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.client}</td>
+        <td class="pos">${R$(r.amount)}</td>
+        <td>${badgeStatus(r.status)}</td>
+      </tr>`).join('')}</tbody></table></div>`
+    : '<p style="color:var(--muted);font-size:13px">Nenhum recebimento pendente</p>';
+  document.getElementById('totalAReceber').textContent = R$(aReceber);
+
+  // Últimas transações
+  const ult = state.transactions.slice(0,8);
+  document.getElementById('listTransacoes').innerHTML = ult.length
+    ? `<div class="table-wrap"><table><tbody>${ult.map(t => `<tr>
+        <td>${fmtDate(t.date)}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.description}</td>
+        <td class="${t.type==='receita'?'pos':'neg'}">${t.type==='receita'?'+':'-'}${R$(t.amount)}</td>
+      </tr>`).join('')}</tbody></table></div>`
+    : '<p style="color:var(--muted);font-size:13px">Nenhum lançamento</p>';
+
+  // Custos fixos
+  const totalFixos = state.fixedCosts.reduce((a,f) => a + +f.amount, 0);
+  document.getElementById('listFixos').innerHTML = state.fixedCosts.length
+    ? `<div class="table-wrap"><table><tbody>${state.fixedCosts.map(f => `<tr>
+        <td>${f.due_day ? 'Dia '+f.due_day : '-'}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.description}</td>
+        <td class="neg">${R$(f.amount)}</td>
+      </tr>`).join('')}</tbody></table></div>`
+    : '<p style="color:var(--muted);font-size:13px">Nenhum custo fixo</p>';
+  document.getElementById('totalFixos').textContent = R$(totalFixos) + '/mês';
+}
+
+function kpiCard(label, value, sub='', cls='') {
+  return `<div class="kpi-card"><div class="kpi-label">${label}</div><div class="kpi-value ${cls}">${value}</div>${sub?`<div class="kpi-sub">${sub}</div>`:''}</div>`;
+}
+function kpiCardProgress(label, value, sub, pct) {
+  return `<div class="kpi-card"><div class="kpi-label">${label}</div><div class="kpi-value pos">${value}</div><div class="kpi-sub">${sub}</div><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div></div>`;
+}
+function badgeStatus(s) {
+  const map = { pendente:'yellow', pago:'green', recebido:'green', vencido:'red', cancelado:'gray' };
+  return `<span class="badge badge-${map[s]||'gray'}">${s}</span>`;
+}
+
+// ─── DRE ──────────────────────────────────────────────────────────────────────
+async function renderDRE() {
+  document.getElementById('dreAnoLabel').textContent = ANO;
+  const [summary, bycat] = await Promise.all([
+    rpc('get_monthly_summary', { year_val: ANO }),
+    rpc('get_expense_by_category', { year_val: ANO })
+  ]);
+  const rows = summary || [];
+  const cats = bycat || [];
+
+  // KPIs anuais
+  const totRec = rows.reduce((a,r) => a + +r.receita, 0);
+  const totDesp = rows.reduce((a,r) => a + +r.despesa, 0);
+  const totLucro = totRec - totDesp;
+  const margAnual = totRec > 0 ? (totLucro / totRec * 100) : 0;
+  document.getElementById('kpiDreRow').innerHTML = `
+    ${kpiCard('Faturamento '+ANO, R$(totRec), '', 'pos')}
+    ${kpiCard('Despesas '+ANO, R$(totDesp), '', 'neg')}
+    ${kpiCard('Lucro '+ANO, R$(totLucro), '', totLucro >= 0 ? 'pos' : 'neg')}
+    ${kpiCard('Margem Anual', margAnual.toFixed(1)+'%', '', margAnual >= 20 ? 'pos' : margAnual > 0 ? 'neu' : 'neg')}
+  `;
+
+  // Gráfico fluxo
+  const meses = Array.from({length:12},(_,i)=>i+1);
+  const byMes = {};
+  rows.forEach(r => { byMes[parseInt(r.mes)] = r; });
+  const labelsChart = MESES;
+  const recData  = meses.map(m => +(byMes[m]?.receita||0));
+  const despData = meses.map(m => +(byMes[m]?.despesa||0));
+  const lucData  = meses.map(m => +(byMes[m]?.lucro||0));
+
+  if (chartFluxo) chartFluxo.destroy();
+  chartFluxo = new Chart(document.getElementById('chartFluxo'), {
+    type:'bar',
+    data: {
+      labels: labelsChart,
+      datasets: [
+        { label:'Receita', data: recData, backgroundColor:'#22c55e88', borderColor:'#22c55e', borderWidth:1 },
+        { label:'Despesa', data: despData, backgroundColor:'#ef444488', borderColor:'#ef4444', borderWidth:1 },
+        { label:'Lucro', data: lucData, type:'line', borderColor:'#4f8ef7', backgroundColor:'#4f8ef722', tension:.4, pointRadius:3 }
+      ]
+    },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:'#8892a4', font:{size:11} } } }, scales:{ x:{ ticks:{ color:'#8892a4' }, grid:{ color:'#2e3347' } }, y:{ ticks:{ color:'#8892a4', callback: v => 'R$'+v.toLocaleString('pt-BR') }, grid:{ color:'#2e3347' } } } }
+  });
+
+  // Gráfico categoria
+  if (chartCategoria) chartCategoria.destroy();
+  if (cats.length) {
+    chartCategoria = new Chart(document.getElementById('chartCategoria'), {
+      type:'doughnut',
+      data: {
+        labels: cats.map(c=>c.category||'Outros'),
+        datasets:[{ data: cats.map(c=>+c.total), backgroundColor:['#ef4444','#f59e0b','#22c55e','#4f8ef7','#7c5cbf','#06b6d4','#f97316','#ec4899','#84cc16','#64748b'] }]
+      },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ color:'#8892a4', font:{size:11}, boxWidth:12 } } } }
+    });
+  }
+
+  // Tabela DRE
+  const allMeses = MESES.map((nm,i) => {
+    const m = byMes[i+1];
+    return { nm, rec: +(m?.receita||0), desp: +(m?.despesa||0), luc: +(m?.lucro||0) };
+  }).filter(m => m.rec > 0 || m.desp > 0);
+
+  const sumRec  = allMeses.reduce((a,m) => a+m.rec,0);
+  const sumDesp = allMeses.reduce((a,m) => a+m.desp,0);
+  const sumLuc  = sumRec - sumDesp;
+
+  document.getElementById('tableDre').innerHTML = `
+    <thead><tr><th>Mês</th><th>Receita</th><th>Despesas</th><th>Lucro</th><th>Margem</th></tr></thead>
+    <tbody>
+      ${allMeses.map(m => `<tr>
+        <td>${m.nm}</td>
+        <td class="pos">${R$(m.rec)}</td>
+        <td class="neg">${R$(m.desp)}</td>
+        <td class="${m.luc>=0?'pos':'neg'}">${R$(m.luc)}</td>
+        <td>${m.rec>0?(m.luc/m.rec*100).toFixed(1)+'%':'-'}</td>
+      </tr>`).join('')}
+    </tbody>
+    <tfoot><tr class="total-row">
+      <td>TOTAL</td><td class="pos">${R$(sumRec)}</td><td class="neg">${R$(sumDesp)}</td>
+      <td class="${sumLuc>=0?'pos':'neg'}">${R$(sumLuc)}</td>
+      <td>${sumRec>0?(sumLuc/sumRec*100).toFixed(1)+'%':'-'}</td>
+    </tr></tfoot>
+  `;
+}
+
+// ─── A PAGAR ──────────────────────────────────────────────────────────────────
+function renderPagar() {
+  const busca = (document.getElementById('filterPagarBusca')?.value||'').toLowerCase();
+  const status = document.getElementById('filterPagarStatus')?.value||'';
+  const mes = document.getElementById('filterPagarMes')?.value||'';
+  let list = state.payables;
+  if (busca) list = list.filter(p => (p.supplier+p.description).toLowerCase().includes(busca));
+  if (status) list = list.filter(p => p.status === status);
+  if (mes) list = list.filter(p => p.due_date && p.due_date.startsWith(mes));
+  const total = list.filter(p=>p.status!=='cancelado').reduce((a,p)=>a+(p.status==='pago'?0:+p.amount),0);
+  document.getElementById('resumoPagar').textContent = `${list.length} registros | Pendente: ${R$(total)}`;
+  const tbody = document.getElementById('bodyPagar');
+  if (!list.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Nenhum registro encontrado</td></tr>`; return; }
+  tbody.innerHTML = list.map(p => `<tr>
+    <td>${p.supplier}</td>
+    <td>${p.description}</td>
+    <td>${fmtDate(p.due_date)}</td>
+    <td class="neg">${R$(p.amount)}</td>
+    <td>${badgeStatus(p.status)}</td>
+    <td style="white-space:nowrap">
+      ${p.status==='pendente'||p.status==='vencido' ? `<button class="confirm-btn pay" onclick="abrirConfirmarPagar('${p.id}','${p.supplier} - ${p.description}',${p.amount})">Pagar</button>` : ''}
+      <button class="del-btn" onclick="deletar('payables','${p.id}','payables')">✕</button>
+    </td>
+  </tr>`).join('');
+}
+
+// ─── A RECEBER ────────────────────────────────────────────────────────────────
+function renderReceber() {
+  const busca = (document.getElementById('filterReceberBusca')?.value||'').toLowerCase();
+  const status = document.getElementById('filterReceberStatus')?.value||'';
+  const mes = document.getElementById('filterReceberMes')?.value||'';
+  let list = state.receivables;
+  if (busca) list = list.filter(r => (r.client+r.description).toLowerCase().includes(busca));
+  if (status) list = list.filter(r => r.status === status);
+  if (mes) list = list.filter(r => r.due_date && r.due_date.startsWith(mes));
+  const total = list.filter(r=>r.status!=='cancelado').reduce((a,r)=>a+(r.status==='recebido'?0:+r.amount),0);
+  document.getElementById('resumoReceber').textContent = `${list.length} registros | Pendente: ${R$(total)}`;
+  const tbody = document.getElementById('bodyReceber');
+  if (!list.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Nenhum registro encontrado</td></tr>`; return; }
+  tbody.innerHTML = list.map(r => `<tr>
+    <td>${r.client}</td>
+    <td>${r.description}</td>
+    <td>${fmtDate(r.due_date)}</td>
+    <td class="pos">${R$(r.amount)}</td>
+    <td>${badgeStatus(r.status)}</td>
+    <td style="white-space:nowrap">
+      ${r.status==='pendente'||r.status==='vencido' ? `<button class="confirm-btn receive" onclick="abrirConfirmarReceber('${r.id}','${r.client} - ${r.description}',${r.amount})">Receber</button>` : ''}
+      <button class="del-btn" onclick="deletar('receivables','${r.id}','receivables')">✕</button>
+    </td>
+  </tr>`).join('');
+}
+
+// ─── LANÇAMENTOS ──────────────────────────────────────────────────────────────
+function renderLancamentos() {
+  const busca = (document.getElementById('filterLancBusca')?.value||'').toLowerCase();
+  const tipo = document.getElementById('filterLancTipo')?.value||'';
+  const mes = document.getElementById('filterLancMes')?.value||'';
+  let list = state.transactions;
+  if (busca) list = list.filter(t => t.description.toLowerCase().includes(busca));
+  if (tipo) list = list.filter(t => t.type === tipo);
+  if (mes) list = list.filter(t => t.date && t.date.startsWith(mes));
+  const totalRec  = list.filter(t=>t.type==='receita').reduce((a,t)=>a+ +t.amount,0);
+  const totalDesp = list.filter(t=>t.type==='despesa').reduce((a,t)=>a+ +t.amount,0);
+  document.getElementById('resumoLanc').textContent = `${list.length} itens | Rec: ${R$(totalRec)} | Desp: ${R$(totalDesp)}`;
+  const tbody = document.getElementById('bodyLanc');
+  if (!list.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Nenhum lançamento</td></tr>`; return; }
+  tbody.innerHTML = list.map(t => `<tr>
+    <td>${fmtDate(t.date)}</td>
+    <td>${t.description}</td>
+    <td><span class="badge badge-gray">${t.category||'-'}</span></td>
+    <td>${t.account||'-'}</td>
+    <td><span class="badge ${t.type==='receita'?'badge-green':'badge-red'}">${t.type}</span></td>
+    <td class="${t.type==='receita'?'pos':'neg'}">${t.type==='receita'?'+':'-'}${R$(t.amount)}</td>
+    <td><button class="del-btn" onclick="deletar('transactions','${t.id}','transactions')">✕</button></td>
+  </tr>`).join('');
+}
+
+// ─── FILTERS POPULATION ───────────────────────────────────────────────────────
+function populateFilters() {
+  const mesesSet = new Set();
+  [...state.transactions, ...state.payables, ...state.receivables].forEach(r => {
+    const d = r.date || r.due_date;
+    if (d) mesesSet.add(d.slice(0,7));
+  });
+  const sorted = [...mesesSet].sort().reverse();
+  ['filterPagarMes','filterReceberMes','filterLancMes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = `<option value="">Todos os meses</option>` + sorted.map(m => {
+      const [y,mo] = m.split('-');
+      return `<option value="${m}" ${m===cur?'selected':''}>${MESES[+mo-1]} ${y}</option>`;
+    }).join('');
+  });
+}
+
+function populateSelects() {
+  const contas = state.accounts.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
+  const contasDef = `<option value="">-- Conta --</option>` + contas;
+  ['mContaTrans','mConfPagarConta','mConfReceberConta'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = contasDef;
+  });
+
+  const rec  = state.categories.filter(c=>c.type==='receita').map(c=>`<option>${c.name}</option>`).join('');
+  const desp = state.categories.filter(c=>c.type==='despesa').map(c=>`<option>${c.name}</option>`).join('');
+  const allCats = `<option value="">-- Categoria --</option><optgroup label="Receita">${rec}</optgroup><optgroup label="Despesa">${desp}</optgroup>`;
+  document.getElementById('mCategTrans').innerHTML = allCats;
+  document.getElementById('mCategPagar').innerHTML = `<option value="">-- Categoria --</option>` + desp;
+  document.getElementById('mCategReceber').innerHTML = `<option value="">-- Categoria --</option>` + rec;
+}
+
+// ─── MODALS ───────────────────────────────────────────────────────────────────
+function openModal(type) {
+  if (type === 'transacao') {
+    document.getElementById('mDataTrans').value = today();
+    document.getElementById('mDescTrans').value = '';
+    document.getElementById('mValorTrans').value = '';
+    // update categories based on type
+    document.getElementById('mTipoTrans').onchange = () => {};
+    document.getElementById('modalTransacao').style.display = 'flex';
+  } else if (type === 'pagar') {
+    document.getElementById('mFornecedor').value = '';
+    document.getElementById('mVencPagar').value = today();
+    document.getElementById('mDescPagar').value = '';
+    document.getElementById('mValorPagar').value = '';
+    document.getElementById('modalPagar').style.display = 'flex';
+  } else if (type === 'receber') {
+    document.getElementById('mCliente').value = '';
+    document.getElementById('mVencReceber').value = today();
+    document.getElementById('mDescReceber').value = '';
+    document.getElementById('mValorReceber').value = '';
+    document.getElementById('modalReceber').style.display = 'flex';
+  }
+}
+function closeModal(type) {
+  const map = { transacao:'modalTransacao', pagar:'modalPagar', receber:'modalReceber', confirmarPagar:'modalConfirmarPagar', confirmarReceber:'modalConfirmarReceber' };
+  document.getElementById(map[type]).style.display = 'none';
+}
+
+// ─── SAVE ─────────────────────────────────────────────────────────────────────
+async function saveTransacao() {
+  const tipo  = document.getElementById('mTipoTrans').value;
+  const data  = document.getElementById('mDataTrans').value;
+  const desc  = document.getElementById('mDescTrans').value.trim();
+  const valor = +document.getElementById('mValorTrans').value;
+  const conta = document.getElementById('mContaTrans').value;
+  const categ = document.getElementById('mCategTrans').value;
+  if (!desc || !valor || !data) return alert('Preencha todos os campos');
+  await post('transactions', { date:data, description:desc, amount:valor, type:tipo, category:categ||null, account:conta||null });
+  closeModal('transacao');
+  await loadAll();
+}
+
+async function savePagar() {
+  const forn  = document.getElementById('mFornecedor').value.trim();
+  const venc  = document.getElementById('mVencPagar').value;
+  const desc  = document.getElementById('mDescPagar').value.trim();
+  const valor = +document.getElementById('mValorPagar').value;
+  const categ = document.getElementById('mCategPagar').value;
+  if (!forn || !desc || !valor || !venc) return alert('Preencha todos os campos');
+  await post('payables', { supplier:forn, description:desc, amount:valor, due_date:venc, category:categ||null });
+  closeModal('pagar');
+  await loadAll();
+}
+
+async function saveReceber() {
+  const cli   = document.getElementById('mCliente').value.trim();
+  const venc  = document.getElementById('mVencReceber').value;
+  const desc  = document.getElementById('mDescReceber').value.trim();
+  const valor = +document.getElementById('mValorReceber').value;
+  const categ = document.getElementById('mCategReceber').value;
+  if (!cli || !desc || !valor || !venc) return alert('Preencha todos os campos');
+  await post('receivables', { client:cli, description:desc, amount:valor, due_date:venc, category:categ||null });
+  closeModal('receber');
+  await loadAll();
+}
+
+// ─── CONFIRMAR PAGAMENTO / RECEBIMENTO ────────────────────────────────────────
+function abrirConfirmarPagar(id, desc, amount) {
+  document.getElementById('mConfPagarId').textContent = id;
+  document.getElementById('mConfPagarDesc').textContent = desc;
+  document.getElementById('mConfPagarData').value = today();
+  document.getElementById('mConfPagarValor').value = amount;
+  document.getElementById('modalConfirmarPagar').style.display = 'flex';
+}
+async function confirmarPagamento() {
+  const id    = document.getElementById('mConfPagarId').textContent;
+  const data  = document.getElementById('mConfPagarData').value;
+  const conta = document.getElementById('mConfPagarConta').value;
+  const valor = +document.getElementById('mConfPagarValor').value;
+  const p = state.payables.find(x => x.id === id);
+  await patch('payables', id, { status:'pago', paid_at: data+'T12:00:00', paid_amount: valor });
+  await post('transactions', { date:data, description:'Pagamento: '+(p?.description||''), amount:valor, type:'despesa', category:p?.category||null, account:conta||null });
+  closeModal('confirmarPagar');
+  await loadAll();
+}
+
+function abrirConfirmarReceber(id, desc, amount) {
+  document.getElementById('mConfReceberId').textContent = id;
+  document.getElementById('mConfReceberDesc').textContent = desc;
+  document.getElementById('mConfReceberData').value = today();
+  document.getElementById('mConfReceberValor').value = amount;
+  document.getElementById('modalConfirmarReceber').style.display = 'flex';
+}
+async function confirmarRecebimento() {
+  const id    = document.getElementById('mConfReceberId').textContent;
+  const data  = document.getElementById('mConfReceberData').value;
+  const conta = document.getElementById('mConfReceberConta').value;
+  const valor = +document.getElementById('mConfReceberValor').value;
+  const r = state.receivables.find(x => x.id === id);
+  await patch('receivables', id, { status:'recebido', received_at: data+'T12:00:00', received_amount: valor });
+  await post('transactions', { date:data, description:'Recebimento: '+(r?.description||''), amount:valor, type:'receita', category:r?.category||null, account:conta||null });
+  closeModal('confirmarReceber');
+  await loadAll();
+}
+
+// ─── DELETE ───────────────────────────────────────────────────────────────────
+async function deletar(tabela, id, stateKey) {
+  if (!confirm('Confirmar exclusão?')) return;
+  await del(tabela, id);
+  state[stateKey] = state[stateKey].filter(x => x.id !== id);
+  renderAll();
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  const map = { geral:'tabGeral', dre:'tabDre', pagar:'tabPagar', receber:'tabReceber', lancamentos:'tabLancamentos' };
+  document.querySelectorAll('.tab')[['geral','dre','pagar','receber','lancamentos'].indexOf(name)].classList.add('active');
+  document.getElementById(map[name]).classList.add('active');
+  if (name === 'dre') renderDRE();
+}
+
+// ─── TERMINAL ─────────────────────────────────────────────────────────────────
+async function handleTerminal() {
+  const input = document.getElementById('terminalInput');
+  const msg   = document.getElementById('terminalMsg');
+  const raw   = input.value.trim();
+  if (!raw) return;
+  msg.className = ''; msg.textContent = '...';
+
+  try {
+    const result = await parseTerminal(raw);
+    msg.className = 'ok'; msg.textContent = result;
+    input.value = '';
+    await loadAll();
+  } catch(e) {
+    msg.className = 'err'; msg.textContent = e.message;
+  }
+}
+
+async function parseTerminal(raw) {
+  const cmd = raw.toLowerCase().trim();
+
+  if (cmd === 'ajuda') {
+    document.getElementById('terminalMsg').textContent = '';
+    alert(`COMANDOS:\n\nreceita DD/MM valor conta descrição\ndespesa DD/MM valor conta descrição\npagar fornecedor valor DD/MM descrição\nreceber cliente valor DD/MM descrição\n\nExemplos:\nreceita 25/04 5000 nubank Venda\ndespesa 25/04 800 bradesco Aluguel\npagar Fornecedor X 1200 30/04 Nota Fiscal\nreceber Cliente Y 3000 28/04 Fatura 001`);
+    return 'Ajuda exibida';
+  }
+
+  // receita 25/04 5000 nubank Descrição
+  const mRec = raw.match(/^receita\s+(\d{2})\/(\d{2})\s+([\d.,]+)\s+(\S+)\s+(.+)$/i);
+  if (mRec) {
+    const [,d,m,v,conta,desc] = mRec;
+    const ano = new Date().getFullYear();
+    const data = `${ano}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    await post('transactions', { date:data, description:desc.trim(), amount:parseFloat(v.replace(',','.')), type:'receita', account:conta });
+    return `✅ Receita registrada: ${desc} — R$ ${v}`;
+  }
+
+  // despesa 25/04 800 bradesco Descrição
+  const mDesp = raw.match(/^despesa\s+(\d{2})\/(\d{2})\s+([\d.,]+)\s+(\S+)\s+(.+)$/i);
+  if (mDesp) {
+    const [,d,m,v,conta,desc] = mDesp;
+    const ano = new Date().getFullYear();
+    const data = `${ano}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    await post('transactions', { date:data, description:desc.trim(), amount:parseFloat(v.replace(',','.')), type:'despesa', account:conta });
+    return `✅ Despesa registrada: ${desc} — R$ ${v}`;
+  }
+
+  // pagar Fornecedor 1200 30/04 Descrição
+  const mPagar = raw.match(/^pagar\s+(.+?)\s+([\d.,]+)\s+(\d{2})\/(\d{2})\s+(.+)$/i);
+  if (mPagar) {
+    const [,forn,v,d,m,desc] = mPagar;
+    const ano = new Date().getFullYear();
+    const data = `${ano}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    await post('payables', { supplier:forn.trim(), description:desc.trim(), amount:parseFloat(v.replace(',','.')), due_date:data });
+    return `✅ Conta a pagar: ${forn} — R$ ${v} — vence ${d}/${m}`;
+  }
+
+  // receber Cliente 3000 28/04 Descrição
+  const mReceber = raw.match(/^receber\s+(.+?)\s+([\d.,]+)\s+(\d{2})\/(\d{2})\s+(.+)$/i);
+  if (mReceber) {
+    const [,cli,v,d,m,desc] = mReceber;
+    const ano = new Date().getFullYear();
+    const data = `${ano}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    await post('receivables', { client:cli.trim(), description:desc.trim(), amount:parseFloat(v.replace(',','.')), due_date:data });
+    return `✅ A receber: ${cli} — R$ ${v} — vence ${d}/${m}`;
+  }
+
+  throw new Error('Comando não reconhecido. Digite "ajuda"');
+}
+
+// ─── EXPORT EXCEL ─────────────────────────────────────────────────────────────
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  const addSheet = (name, data) => {
+    if (!data.length) return;
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), name);
+  };
+  addSheet('Lançamentos', state.transactions.map(t => ({ Data:fmtDate(t.date), Descrição:t.description, Tipo:t.type, Categoria:t.category||'', Conta:t.account||'', Valor:+t.amount })));
+  addSheet('A Pagar', state.payables.map(p => ({ Fornecedor:p.supplier, Descrição:p.description, Vencimento:fmtDate(p.due_date), Valor:+p.amount, Status:p.status })));
+  addSheet('A Receber', state.receivables.map(r => ({ Cliente:r.client, Descrição:r.description, Vencimento:fmtDate(r.due_date), Valor:+r.amount, Status:r.status })));
+  XLSX.writeFile(wb, `financeiro-empresa-${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.style.display = 'none'; });
+});
+</script>
+</body>
+</html>
