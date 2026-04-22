@@ -12,7 +12,7 @@ jobs:
       - name: Ping Supabase
         run: |
           curl -s \
-            -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6dXNpYmZ6bnRwZGpjZm1xYm9uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NjU2MDYsImV4cCI6MjA5MjQ0MTYwNn0.PMPcZjiPu_z0sydPwGtMll6JxfQHJ-MISjoIwBw_DA4" \
+            -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6dXNpYmZ6bnRwZGpjZm1xYm9uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NjU2MDYsImV4cCI6MjA5MjQ0MTYwNn0.PMPcZjiPu_z0sydPwGtMll6JxfQHJ-MISjoIwBw_DA4" \
             "https://kzusibfzntpdjcfmqbon.supabase.co/rest/v1/accounts?limit=1" \
-            > /dev/null && echo "Supabase ativo"
+            > /dev/null && echo "✅ Supabase ativo"
