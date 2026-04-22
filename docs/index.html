@@ -205,6 +205,7 @@
     <div class="tab" onclick="switchTab('pagar')">📤 A Pagar</div>
     <div class="tab" onclick="switchTab('receber')">📥 A Receber</div>
     <div class="tab" onclick="switchTab('lancamentos')">📋 Lançamentos</div>
+    <div class="tab" onclick="switchTab('indicadores')">📊 Indicadores</div>
   </div>
 
   <main class="pb-term">
@@ -310,6 +311,18 @@
           </table></div>
         </div>
       </div>
+    </div>
+
+    <!-- TAB INDICADORES -->
+    <div id="tabIndicadores" class="tab-content">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <div style="font-size:18px;font-weight:700">9 Indicadores Financeiros</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">Calculados automaticamente a partir dos seus lançamentos</div>
+        </div>
+        <select id="indMesSel" onchange="renderIndicadores()" style="padding:8px 12px;background:var(--card2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;outline:none"></select>
+      </div>
+      <div id="indGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px"></div>
     </div>
 
     <!-- TAB LANÇAMENTOS -->
@@ -966,14 +979,132 @@ async function deletar(tabela, id, stateKey) {
   renderAll();
 }
 
+// ─── INDICADORES ──────────────────────────────────────────────────────────────
+let chartSparkline = null;
+
+async function renderIndicadores() {
+  const sel = document.getElementById('indMesSel');
+  const mes = sel?.value || new Date().toISOString().slice(0,7);
+  const d = await rpc('get_indicadores', { mes_ref: mes });
+  if (!d) return;
+
+  const hist = d.historico || [];
+  const pctPE = d.ponto_equilibrio > 0 ? Math.min(100, d.receita / d.ponto_equilibrio * 100) : 0;
+  const pctMeta = +(state.settings.meta_faturamento_mensal||0) > 0
+    ? Math.min(100, d.receita / +state.settings.meta_faturamento_mensal * 100) : 0;
+
+  const cards = [
+    {
+      num:'1', titulo:'Receita', icone:'💰',
+      valor: R$(d.receita),
+      detalhe: `${d.qtd_vendas} lançamento${d.qtd_vendas!==1?'s':''} no mês`,
+      extra: pctMeta > 0 ? `<div style="margin-top:10px"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Meta mensal: ${Math.round(pctMeta)}%</div><div class="progress-bar"><div class="progress-fill" style="width:${pctMeta}%;background:var(--green)"></div></div></div>` : '',
+      cor: 'var(--green)', sparkData: hist.map(h=>+h.receita), sparkColor:'#22c55e'
+    },
+    {
+      num:'2', titulo:'Margem Bruta', icone:'📦',
+      valor: d.margem_bruta + '%',
+      detalhe: `Receita ${R$(d.receita)} — CMV ${R$(d.cmv)}`,
+      extra: `<div style="margin-top:10px"><div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,d.margem_bruta)}%;background:${d.margem_bruta>=40?'var(--green)':d.margem_bruta>=20?'var(--yellow)':'var(--red)'}"></div></div><div style="font-size:11px;color:var(--muted);margin-top:4px">${d.margem_bruta>=40?'Excelente':d.margem_bruta>=20?'Atenção':'Crítico'}</div></div>`,
+      cor: d.margem_bruta>=40?'var(--green)':d.margem_bruta>=20?'var(--yellow)':'var(--red)'
+    },
+    {
+      num:'3', titulo:'Margem Líquida', icone:'📉',
+      valor: d.margem_liquida + '%',
+      detalhe: `${R$(d.receita)} − ${R$(d.despesa_total)} = ${R$(d.lucro)}`,
+      extra: `<div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">
+        <div style="background:var(--card2);border-radius:6px;padding:6px"><div style="font-size:10px;color:var(--muted)">Receita</div><div style="font-size:12px;font-weight:600;color:var(--green)">${R$(d.receita)}</div></div>
+        <div style="background:var(--card2);border-radius:6px;padding:6px"><div style="font-size:10px;color:var(--muted)">Despesas</div><div style="font-size:12px;font-weight:600;color:var(--red)">${R$(d.despesa_total)}</div></div>
+        <div style="background:var(--card2);border-radius:6px;padding:6px"><div style="font-size:10px;color:var(--muted)">Lucro</div><div style="font-size:12px;font-weight:600;color:${d.lucro>=0?'var(--green)':'var(--red)'}">${R$(d.lucro)}</div></div>
+      </div>`,
+      cor: d.margem_liquida>=15?'var(--green)':d.margem_liquida>=5?'var(--yellow)':'var(--red)'
+    },
+    {
+      num:'4', titulo:'Ponto de Equilíbrio', icone:'⚖️',
+      valor: R$(d.ponto_equilibrio),
+      detalhe: `Você atingiu ${Math.round(pctPE)}% do PE este mês`,
+      extra: `<div style="margin-top:10px"><div class="progress-bar"><div class="progress-fill" style="width:${pctPE}%;background:${pctPE>=100?'var(--green)':pctPE>=70?'var(--yellow)':'var(--red)'}"></div></div><div style="font-size:11px;color:var(--muted);margin-top:4px">Fixos: ${R$(d.custos_fixos)}/mês · ${pctPE>=100?'✅ No lucro':'⚠️ Abaixo do PE'}</div></div>`,
+      cor: pctPE>=100?'var(--green)':pctPE>=70?'var(--yellow)':'var(--red)'
+    },
+    {
+      num:'5', titulo:'Ticket Médio', icone:'🎫',
+      valor: R$(d.ticket_medio),
+      detalhe: `Média por lançamento de receita`,
+      extra: `<div style="margin-top:8px;font-size:12px;color:var(--muted)">${d.qtd_vendas} venda${d.qtd_vendas!==1?'s':''} · Total ${R$(d.receita)}</div>`,
+      cor: 'var(--accent)', sparkData: hist.map(h=>+h.receita), sparkColor:'#4f8ef7'
+    },
+    {
+      num:'6', titulo:'Inadimplência', icone:'⚠️',
+      valor: d.inadimplencia + '%',
+      detalhe: `${R$(d.vencidos)} vencidos em aberto`,
+      extra: `<div style="margin-top:10px"><div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,d.inadimplencia)}%;background:${d.inadimplencia<=5?'var(--green)':d.inadimplencia<=15?'var(--yellow)':'var(--red)'}"></div></div><div style="font-size:11px;color:var(--muted);margin-top:4px">${d.inadimplencia<=5?'Controlada':d.inadimplencia<=15?'Atenção':'Alta'} · A receber total: ${R$(d.a_receber)}</div></div>`,
+      cor: d.inadimplencia<=5?'var(--green)':d.inadimplencia<=15?'var(--yellow)':'var(--red)'
+    },
+    {
+      num:'7', titulo:'Geração de Caixa', icone:'💸',
+      valor: R$(d.geracao_caixa),
+      detalhe: `A receber − A pagar`,
+      extra: `<div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="background:var(--card2);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--muted)">A Receber</div><div style="font-size:13px;font-weight:600;color:var(--green)">${R$(d.a_receber)}</div></div>
+        <div style="background:var(--card2);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--muted)">A Pagar</div><div style="font-size:13px;font-weight:600;color:var(--red)">${R$(d.a_pagar)}</div></div>
+      </div>`,
+      cor: d.geracao_caixa>=0?'var(--green)':'var(--red)'
+    },
+    {
+      num:'8', titulo:'Endividamento', icone:'🏦',
+      valor: d.endividamento + '%',
+      detalhe: `Dívidas vs saldo em contas`,
+      extra: `<div style="margin-top:10px"><div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,d.endividamento)}%;background:${d.endividamento<=30?'var(--green)':d.endividamento<=70?'var(--yellow)':'var(--red)'}"></div></div><div style="font-size:11px;color:var(--muted);margin-top:4px">${d.endividamento<=30?'Dívida controlada':d.endividamento<=70?'Atenção':'Dívida excessiva'} · Saldo: ${R$(d.saldo_contas)}</div></div>`,
+      cor: d.endividamento<=30?'var(--green)':d.endividamento<=70?'var(--yellow)':'var(--red)'
+    },
+    {
+      num:'9', titulo:'ROI', icone:'📈',
+      valor: d.roi + '%',
+      detalhe: `Retorno sobre despesas`,
+      extra: `<div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="background:var(--card2);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--muted)">Investido</div><div style="font-size:13px;font-weight:600;color:var(--muted)">${R$(d.despesa_total)}</div></div>
+        <div style="background:var(--card2);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--muted)">Retorno</div><div style="font-size:13px;font-weight:600;color:${d.roi>=0?'var(--green)':'var(--red)'}">${R$(d.lucro)}</div></div>
+      </div>`,
+      cor: d.roi>=20?'var(--green)':d.roi>=0?'var(--yellow)':'var(--red)'
+    }
+  ];
+
+  document.getElementById('indGrid').innerHTML = cards.map(c => `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;border-top:3px solid ${c.cor}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">${c.num}. ${c.titulo}</div>
+        <span style="font-size:20px">${c.icone}</span>
+      </div>
+      <div style="font-size:26px;font-weight:800;color:${c.cor};margin-bottom:4px">${c.valor}</div>
+      <div style="font-size:12px;color:var(--muted)">${c.detalhe}</div>
+      ${c.extra||''}
+    </div>
+  `).join('');
+}
+
+function populateIndMes() {
+  const sel = document.getElementById('indMesSel');
+  if (!sel) return;
+  const mesesSet = new Set();
+  state.transactions.forEach(t => { if(t.date) mesesSet.add(t.date.slice(0,7)); });
+  const cur = new Date().toISOString().slice(0,7);
+  mesesSet.add(cur);
+  const sorted = [...mesesSet].sort().reverse();
+  sel.innerHTML = sorted.map(m => {
+    const [y,mo] = m.split('-');
+    return `<option value="${m}" ${m===cur?'selected':''}>${MESES[+mo-1]} ${y}</option>`;
+  }).join('');
+}
+
 // ─── TABS ─────────────────────────────────────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  const map = { geral:'tabGeral', dre:'tabDre', pagar:'tabPagar', receber:'tabReceber', lancamentos:'tabLancamentos' };
-  document.querySelectorAll('.tab')[['geral','dre','pagar','receber','lancamentos'].indexOf(name)].classList.add('active');
+  const map = { geral:'tabGeral', dre:'tabDre', pagar:'tabPagar', receber:'tabReceber', lancamentos:'tabLancamentos', indicadores:'tabIndicadores' };
+  document.querySelectorAll('.tab')[['geral','dre','pagar','receber','lancamentos','indicadores'].indexOf(name)].classList.add('active');
   document.getElementById(map[name]).classList.add('active');
   if (name === 'dre') renderDRE();
+  if (name === 'indicadores') { populateIndMes(); renderIndicadores(); }
 }
 
 // ─── TERMINAL ─────────────────────────────────────────────────────────────────
